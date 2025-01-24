@@ -8,7 +8,7 @@ const nursingController = {
     Regis.createBooking(name, mobile, nurseType, location, services, preferences, enquiryno, (err, results) => {
       if (err) {
         console.error('Error creating nurse booking:', err);
-        return res.status(500).send('Internal Server Error');
+        return res.status(500).send('Internal Server Error!! Please check');
       }
       res.status(201).json({
         message: 'Booking created successfully!',
