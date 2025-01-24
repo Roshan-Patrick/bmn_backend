@@ -9,7 +9,7 @@ const authController = {
             if (!user) return res.status(401).send('Invalid credentials');
             bcrypt.compare(password, user.password, (err, isMatch) => {
                 if (err) throw err;
-                if (!isMatch) return res.status(401).send('Invalid credentials');
+                if (!isMatch) return res.status(401).send('Invalid credentials!! Please send valid credentials');
 
                 const token = jwt.sign({ id: user.id, role: user.role }, 'your_jwt_secret', { expiresIn: "1hr" });
                 res.json({ 
