@@ -126,6 +126,7 @@ router.put('/updateBooking', nursingController.updateBooking);
  * /api/nursing/deleteBookings/{id}:
  *   delete:
  *     summary: Delete a booking
+ *     tags: [Booking]
  *     description: Deletes a booking entry from the database by its ID.
  *     parameters:
  *       - in: path
