@@ -6,7 +6,7 @@ const nursingController = require('../controllers/nursingRegistration.controller
 // Endpoint for user registration (with file upload)
 /**
  * @swagger
- * /api/register/registerNurse:
+ * /register/registerNurse:
  *   post:
  *     summary: Register a nurse with an image file
  *     tags:
@@ -58,7 +58,7 @@ router.post('/registerNurse', upload.single('photo'), nursingController.register
 
 /**
  * @swagger
- * /api/register/registrations:
+ * /register/registrations:
  *   get:
  *     summary: Get all nurse registrations
  *     tags:
@@ -87,5 +87,73 @@ router.post('/registerNurse', upload.single('photo'), nursingController.register
  *         description: Server error
  */
 router.get('/registrations', nursingController.fetchAllRegistrationsNurse);
+
+
+/**
+ * @swagger
+ * /register/updateApproval:
+ *   put:
+ *     summary: Update approval status (Approve/Deny)
+ *     description: Updates the approval_status column in the registration table.
+ *     tags:
+ *       - Nurse Registration
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - id
+ *               - status
+ *             properties:
+ *               id:
+ *                 type: integer
+ *                 description: The ID of the registration.
+ *               status:
+ *                 type: string
+ *                 enum: [Approved, Denied]
+ *                 description: The new approval status.
+ *     responses:
+ *       200:
+ *         description: Approval status updated successfully.
+ *       400:
+ *         description: Invalid input.
+ *       500:
+ *         description: Internal server error.
+ */
+router.put('/updateApproval', nursingController.updateApprovalStatus);
+
+/**
+ * @swagger
+ * /register/revertApproval:
+ *   put:
+ *     summary: Revert approval status to Pending
+ *     description: Updates the approval_status column back to 'Pending'.
+ *     tags:
+ *       - Nurse Registration
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - id
+ *             properties:
+ *               id:
+ *                 type: integer
+ *                 description: The ID of the registration.
+ *     responses:
+ *       200:
+ *         description: Approval status reverted to pending.
+ *       400:
+ *         description: Invalid input.
+ *       500:
+ *         description: Internal server error.
+ */
+router.put('/revertApproval', nursingController.revertApprovalStatus);
+
+router.put("/editNurse/:id", nursingController.editNurse);
 
 module.exports = router;

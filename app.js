@@ -13,10 +13,10 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.use('/api/auth', authRoutes);
-app.use('/api/nursing', nurseRoutes);
+app.use('/auth', authRoutes);
+app.use('/nursing', nurseRoutes);
 // Use the registration routes
-app.use('/api/register', registrationRoutes);
+app.use('/register', registrationRoutes);
 
 // Serve uploaded files as static
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -28,3 +28,6 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
+// app.listen(3000,'103.91.186.102', () => {
+//     console.log(`Server running on port ${PORT}`);
+// });
