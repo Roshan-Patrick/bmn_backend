@@ -41,6 +41,15 @@ const nursingRegistrationModel = {
         callback(null, results);
     });
 },
+updateAvailableStatus: (id, status, callback) => {
+  db.query('UPDATE registration SET availability = ? WHERE id = ?', [status, id], (err, results) => {
+      if (err) {
+          console.error('Error updating approval status:', err);
+          return callback(err);
+      }
+      callback(null, results);
+  });
+},
 
 // Revert Approval Status to Pending
 revertApprovalStatus: (id, callback) => {

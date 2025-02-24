@@ -124,6 +124,42 @@ router.get('/registrations', nursingController.fetchAllRegistrationsNurse);
  */
 router.put('/updateApproval', nursingController.updateApprovalStatus);
 
+
+/**
+ * @swagger
+ * /register/updateAvailable:
+ *   put:
+ *     summary: Update Available status (Approve/Deny)
+ *     description: Updates the availability column in the registration table.
+ *     tags:
+ *       - Nurse Registration
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - id
+ *               - status
+ *             properties:
+ *               id:
+ *                 type: integer
+ *                 description: The ID of the registration.
+ *               status:
+ *                 type: string
+ *                 enum: [Approved, Denied]
+ *                 description: The new approval status.
+ *     responses:
+ *       200:
+ *         description: Approval status updated successfully.
+ *       400:
+ *         description: Invalid input.
+ *       500:
+ *         description: Internal server error.
+ */
+router.put('/updateAvailable', nursingController.updateAvailableStatus);
+
 /**
  * @swagger
  * /register/revertApproval:

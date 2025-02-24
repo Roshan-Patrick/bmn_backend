@@ -116,6 +116,20 @@ const nursingController = {
         res.status(200).json({ success: true, message: `Registration ${result} successfully` });
     });
 },
+updateAvailableStatus: (req, res) => {
+  const { id, status } = req.body; // Get user ID and new status
+
+  if (!['Available', 'Busy'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid approval status' });
+  }
+
+  Regis.updateAvailableStatus(id, status, (err, result) => {
+      if (err) {
+          return res.status(500).json({ success: false, message: 'Error updating approval status' });
+      }
+      res.status(200).json({ success: true, message: `Registration ${result} successfully` });
+  });
+},
 
 // Revert Approval Status to Pending
 revertApprovalStatus: (req, res) => {
