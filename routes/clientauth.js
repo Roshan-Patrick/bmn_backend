@@ -1,13 +1,21 @@
 const express = require('express');
-const router = express.Router();
-const authController = require('../controllers/authController');
+const authController = require('../controllers/clientauthController');
 const auth = require('../middleware/auth');
+
+const router = express.Router();
 
 /**
  * @swagger
- * /api/auth/login:
+ * tags:
+ *   name: Auth
+ *   description: User authentication routes
+ */
+
+/**
+ * @swagger
+ * /clientauth/login:
  *   post:
- *     summary: Login a user
+ *     summary: User login
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -16,16 +24,18 @@ const auth = require('../middleware/auth');
  *           schema:
  *             type: object
  *             required:
- *               - username
+ *               - email
  *               - password
  *             properties:
- *               username:
+ *               email:
  *                 type: string
+ *                 example: "user@example.com"
  *               password:
  *                 type: string
+ *                 example: "password123"
  *     responses:
  *       200:
- *         description: Successful login
+ *         description: Login successful
  *         content:
  *           application/json:
  *             schema:
@@ -33,16 +43,18 @@ const auth = require('../middleware/auth');
  *               properties:
  *                 token:
  *                   type: string
+ *                 message:
+ *                   type: string
  *       401:
- *         description: Invalid credentials
+ *         description: Invalid email or password
  */
 router.post('/login', authController.login);
 
 /**
  * @swagger
- * /auth/register:
+ * /clientauth/register:
  *   post:
- *     summary: Register a new user
+ *     summary: User registration
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -51,46 +63,40 @@ router.post('/login', authController.login);
  *           schema:
  *             type: object
  *             required:
- *               - username
+ *               - email
+ *               - phone_number
  *               - password
- *               - role
  *             properties:
- *               username:
+ *               email:
  *                 type: string
+ *                 example: "newuser@example.com"
+ *               phone_number:
+ *                 type: string
+ *                 example: "1234567890"
  *               password:
  *                 type: string
- *               role:
- *                 type: string
+ *                 example: "securepassword"
  *     responses:
  *       201:
  *         description: User registered successfully
- *       500:
- *         description: Error creating user
+ *       400:
+ *         description: Email already exists
  */
 router.post('/register', authController.register);
 
 /**
  * @swagger
- * /api/auth/users:
+ * /clientauth/users:
  *   get:
- *     summary: Retrieve all users
+ *     summary: Get all registered users (Protected)
  *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of all users
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: integer
- *                   username:
- *                     type: string
- *                   role:
- *                     type: string
+ *         description: List of users
+ *       401:
+ *         description: Unauthorized (No token provided)
  */
 router.get('/users', auth, authController.getUsers);
 

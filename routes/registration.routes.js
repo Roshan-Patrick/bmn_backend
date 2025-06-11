@@ -192,4 +192,13 @@ router.put('/revertApproval', nursingController.revertApprovalStatus);
 
 router.put("/editNurse/:id", nursingController.editNurse);
 
+router.patch('/:id/charges', nursingController.updateCharges);
+
+router.patch('/update-nurse', nursingController.updateNurseId);
+
+router.get('/nurse-details/:id', nursingController.getNurseDetailsFromBooking);
+
+
+
+
 module.exports = router;

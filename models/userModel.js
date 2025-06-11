@@ -2,23 +2,70 @@ const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 
 const User = {
-    create: (username, password, role, callback) => {
-        bcrypt.hash(password, 10, (err, hash) => {
-            if (err) throw err;
-            db.query('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', [username, hash, role], callback);
-        });
+    create: async (username, password, role) => {
+        try {
+            const hash = await bcrypt.hash(password, 10);
+            
+            if (role) {
+                const result = await db.query(
+                    'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+                    [username, hash, role]
+                );
+                return result;
+            } else {
+                // Don't send role – let MySQL use default 'user'
+                const result = await db.query(
+                    'INSERT INTO users (username, password) VALUES (?, ?)',
+                    [username, hash]
+                );
+                return result;
+            }
+        } catch (err) {
+            console.error('Error creating user:', err);
+            throw err;
+        }
     },
-    findByUsername: (username, callback) => {
-        db.query('SELECT * FROM users WHERE username = ?', [username], (err, results) => {
-            if (err) throw err;
-            callback(results[0]);
-        });
+    
+    findByUsername: async (username) => {
+        try {
+            console.log('Executing findByUsername query for:', username);
+            const query = 'SELECT * FROM users WHERE username = ?';
+            console.log('Query:', query);
+            
+            const results = await db.query(query, [username]);
+            console.log('Query results:', JSON.stringify(results, null, 2));
+            
+            // Check if results is an array and has elements
+            if (!Array.isArray(results) || results.length === 0) {
+                console.log('No results found for username:', username);
+                return null;
+            }
+            
+            const user = results[0];
+            console.log('User found:', user.username);
+            return user;
+        } catch (err) {
+            console.error('Error finding user by username:', err);
+            throw err;
+        }
     },
-    getAllUsers: (callback) => {
-        db.query('SELECT * FROM users', (err, results) => {
-            if (err) throw err;
-            callback(results);
-        });
+
+    getAllUsers: async () => {
+        try {
+            const results = await db.query('SELECT * FROM users');
+            // console.log('Raw query results:', JSON.stringify(results, null, 2));
+            
+            // If results is a single object, wrap it in an array
+            if (!Array.isArray(results)) {
+                console.log('Converting single result to array');
+                return [results];
+            }
+            
+            return results;
+        } catch (err) {
+            console.error('Error getting all users:', err);
+            throw err;
+        }
     }
 };
 

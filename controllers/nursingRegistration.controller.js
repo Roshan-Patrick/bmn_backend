@@ -11,49 +11,46 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  tls: {
+    rejectUnauthorized: false, // Prevent SSL certificate issues
+  },
 });
 
 
 // Handle user registration
 const nursingController = {
-  registerNurse: (req, res) => {
-    const {
-      name, aadhaar, mobile, email, gender, dob, education, experience,
-      languages, specialization, address, base_location,serviceopt,fromTime, toTime
-    } = req.body;
+  registerNurse: async (req, res) => {
+    try {
+      const {
+        name, mobile, email, gender, dob, education, experience,
+        languages, specialization, address, base_location, serviceopt } = req.body;
 
-    if (!req.file) {
-      return res.status(400).json({ error: 'Image file is required' });
-    }
-
-    console.log('Received Data:', req.body);
-    console.log('Uploaded File:', req.file);
-    // Convert languages from JSON string to array
-    const parsedLanguages = languages ? JSON.parse(languages) : [];
-    const parsedServiceopt = serviceopt ? JSON.parse(serviceopt) : [];
-
-    // Save file path to the images table
-    Regis.insertImg(req.file.path, (err, imageId) => {
-      if (err) {
-        console.error('Error in insertImg:', err);
-        return res.status(500).json({ success: false, message: 'Error inserting image' });
+      if (!req.file) {
+        return res.status(400).json({ error: 'Image file is required' });
       }
+
+      console.log('Received Data:', req.body);
+      console.log('Uploaded File:', req.file);
+      // Convert languages from JSON string to array
+      const parsedLanguages = languages ? JSON.parse(languages) : [];
+      const parsedServiceopt = serviceopt ? JSON.parse(serviceopt) : [];
+
+      // Save file path to the images table
+      const imageId = await Regis.insertImg(req.file.path);
 
       // Save registration details with the image ID
       const registrationData = {
-        name, aadhaar, mobile, email, gender, dob, education, experience,
+        name, mobile, email, gender, dob, education, experience,
         languages: JSON.stringify(parsedLanguages), // Store as JSON string
-        specialization, address, base_location, imageId, serviceopt: JSON.stringify(parsedServiceopt),fromTime, toTime
+        specialization, address, base_location, imageId, serviceopt: JSON.stringify(parsedServiceopt)
       };
 
-      Regis.insertRegistration(registrationData, (err, registrationId) => {
-        if (err) {
-          console.error('Error in insertRegistration:', err);
-          return res.status(500).json({ success: false, message: 'Error inserting registration' });
-        }
+      const registrationId = await Regis.insertRegistration(registrationData);
 
+      // Try to send email, but don't let it affect the registration process
+      try {
         const mailOptions = {
-          from: '"ResQ Consultants" <ak@resq.sg>',
+          from: process.env.SMTP_FROM || '"ResQ Consultants" <noreply@bookmynurse.com>',
           to: email,
           subject: "Nurse Registration Acknowledgment - BookMyNurse",
           html: `<p>Dear Sir/Madam,</p>
@@ -65,6 +62,11 @@ const nursingController = {
                  <p><img src="cid:qrcode" alt="QR Code" style="width:150px; height:150px;"></p>
                  <p>Regards,</p>
                  <p><b>Team BookMyNurse.Com</b></p>`,
+          headers: {
+            "X-Priority": "1 (Highest)",
+            "X-MSMail-Priority": "High",
+            Importance: "High",
+          },
           attachments: [
             {
               filename: 'bmn-app-qr.png',
@@ -74,103 +76,155 @@ const nursingController = {
           ]
         };
 
-        transporter.sendMail(mailOptions, (err, info) => {
-          if (err) {
-            console.error("Error sending email:", err);
-          } else {
-            console.log("Acknowledgment Email Sent:", info.response);
-          }
-        });
+        await transporter.sendMail(mailOptions);
+        console.log("Acknowledgment Email Sent");
+      } catch (emailError) {
+        // Log the email error but don't fail the registration
+        console.error('Failed to send registration email:', emailError);
+        // Continue with the registration process
+      }
 
-        res.status(201).json({ success: true, registrationId });
+      res.status(201).json({ 
+        success: true, 
+        registrationId,
+        message: 'Registration successful. Please check your email for confirmation.'
       });
-    });
+    } catch (err) {
+      console.error('Error in registerNurse:', err);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error processing registration',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
+    }
   },
 
 
 
   // Get all registrations for admin dashboard
-  fetchAllRegistrationsNurse: (req, res) => {
-    const approvalStatus = req.query.approval_status || null;
-     Regis.getAllRegistrations(approvalStatus,(err, registrations) => { 
-       if (err) {
-         console.error('Error in getAllRegistrations:', err);
-         return res.status(500).json({ success: false, message: 'Error fetching registrations' });
-       }
- 
-       res.status(200).json({ success: true, data: registrations });
-     });
+  fetchAllRegistrationsNurse: async (req, res) => {
+    try {
+      const approvalStatus = req.query.approval_status || null;
+      const registrations = await Regis.getAllRegistrations(approvalStatus);
+      res.status(200).json({ success: true, data: registrations });
+    } catch (err) {
+      console.error('Error in fetchAllRegistrationsNurse:', err);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error fetching registrations',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
+    }
   },
 
-  updateApprovalStatus: (req, res) => {
-    const { id, status } = req.body; // Get user ID and new status
+  updateApprovalStatus: async (req, res) => {
+    try {
+      const { id, status } = req.body;
 
-    if (!['Approved', 'Rejected'].includes(status)) {
+      if (!['Approved', 'Rejected'].includes(status)) {
         return res.status(400).json({ error: 'Invalid approval status' });
-    }
-
-    Regis.updateApprovalStatus(id, status, (err, result) => {
-        if (err) {
-            return res.status(500).json({ success: false, message: 'Error updating approval status' });
-        }
-        res.status(200).json({ success: true, message: `Registration ${result} successfully` });
-    });
-},
-updateAvailableStatus: (req, res) => {
-  const { id, status } = req.body; // Get user ID and new status
-
-  if (!['Available', 'Busy'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid approval status' });
-  }
-
-  Regis.updateAvailableStatus(id, status, (err, result) => {
-      if (err) {
-          return res.status(500).json({ success: false, message: 'Error updating approval status' });
       }
-      res.status(200).json({ success: true, message: `Registration ${result} successfully` });
-  });
-},
 
-// Revert Approval Status to Pending
-revertApprovalStatus: (req, res) => {
-    const { id } = req.body; // Get user ID
-
-    Regis.revertApprovalStatus(id, (err, result) => {
-        if (err) {
-            return res.status(500).json({ success: false, message: 'Error reverting approval status' });
-        }
-        res.status(200).json({ success: true, message: `${result} Approval status reverted to pending` });
-    });
-},
-editNurse: (req, res) => {
-  const { id } = req.params; // Get nurse ID from URL
-  const {
-    name, aadhaar, mobile, email, gender, dob, education, experience,
-    languages, specialization, address, base_location,serviceopt,fromTime, toTime
-  } = req.body;
-
-  if (!id) {
-    return res.status(400).json({ error: "Nurse ID is required for updating." });
-  }
-
-  // Convert languages to JSON string before saving
-  const parsedLanguages = Array.isArray(languages) ? JSON.stringify(languages) : languages;
-  const parsedServiceopt = Array.isArray(serviceopt) ? JSON.stringify(serviceopt) : serviceopt;
-
-  // Call model function to update nurse
-  Regis.updateNurse(id, { 
-    name, aadhaar, mobile, email, gender, dob, education, experience,
-    languages: parsedLanguages, specialization, address, base_location,serviceopt:parsedServiceopt,fromTime, toTime
-  }, (err, result) => {
-    if (err) {
-      console.error("Error updating nurse details:", err);
-      return res.status(500).json({ error: "Internal Server Error" });
+      const result = await Regis.updateApprovalStatus(id, status);
+      res.status(200).json({ success: true, message: `Registration ${status} successfully` });
+    } catch (err) {
+      console.error('Error in updateApprovalStatus:', err);
+      res.status(500).json({ success: false, message: 'Error updating approval status' });
     }
-    res.status(200).json({ success: true, message: "Nurse details updated successfully!" });
-  });
-},
+  },
 
-  
+  updateAvailableStatus: async (req, res) => {
+    try {
+      const { id, status } = req.body;
+
+      if (!['Available', 'Unavailable'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid availability status' });
+      }
+
+      const result = await Regis.updateAvailableStatus(id, status);
+      res.status(200).json({ success: true, message: `Availability status updated to ${status}` });
+    } catch (err) {
+      console.error('Error in updateAvailableStatus:', err);
+      res.status(500).json({ success: false, message: 'Error updating availability status' });
+    }
+  },
+
+  revertApprovalStatus: async (req, res) => {
+    try {
+      const { id } = req.body;
+      const result = await Regis.revertApprovalStatus(id);
+      res.status(200).json({ success: true, message: 'Approval status reverted to pending' });
+    } catch (err) {
+      console.error('Error in revertApprovalStatus:', err);
+      res.status(500).json({ success: false, message: 'Error reverting approval status' });
+    }
+  },
+
+  editNurse: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const {
+        name, aadhaar, mobile, email, gender, dob, education, experience,
+        languages, specialization, address, base_location, serviceopt
+      } = req.body;
+
+      if (!id) {
+        return res.status(400).json({ error: "Nurse ID is required for updating." });
+      }
+
+      const parsedLanguages = Array.isArray(languages) ? JSON.stringify(languages) : languages;
+      const parsedServiceopt = Array.isArray(serviceopt) ? JSON.stringify(serviceopt) : serviceopt;
+
+      await Regis.updateNurse(id, {
+        name, aadhaar, mobile, email, gender, dob, education, experience,
+        languages: parsedLanguages, specialization, address, base_location, serviceopt: parsedServiceopt
+      });
+
+      res.status(200).json({ success: true, message: "Nurse details updated successfully!" });
+    } catch (err) {
+      console.error("Error updating nurse details:", err);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  },
+
+  updateCharges: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { charges, charges_type } = req.body;
+
+      if (!charges || isNaN(charges)) {
+        return res.status(400).json({ error: 'Valid charges amount required' });
+      }
+
+      await Regis.updateCharges(id, charges, charges_type);
+      res.status(200).json({ success: true, message: 'Charges updated successfully' });
+    } catch (err) {
+      console.error("Error updating charges:", err);
+      res.status(500).json({ success: false, message: 'Error updating charges' });
+    }
+  },
+
+  updateNurseId: async (req, res) => {
+    try {
+      const { bookingId, nurseId } = req.body;
+      await Regis.updateNurseId(bookingId, nurseId);
+      res.status(200).json({ success: true, message: 'Nurse ID updated successfully' });
+    } catch (err) {
+      console.error('Error updating nurse_id:', err);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  },
+
+  getNurseDetailsFromBooking: async (req, res) => {
+    try {
+      const bookingId = req.params.id;
+      const nurse = await Regis.fetchNurseDetails(bookingId);
+      res.status(200).json({ success: true, nurse });
+    } catch (err) {
+      console.error('Error fetching nurse details:', err);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
 };
 
 // Export all controller functions as a single object

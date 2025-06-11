@@ -145,5 +145,7 @@ router.put('/updateBooking', nursingController.updateBooking);
  */
 router.delete('/deleteBookings/:id', nursingController.deleteBooking);
 
+router.put('/updateNurseApproval', nursingController.updateNurseApprovalStatus);
+
 
 module.exports = router;
